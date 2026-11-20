@@ -11,7 +11,7 @@ The Codex client connecting to this MCP keeps its own authentication.
 | `models`, `execution_context` | Discover models and probe the configured workspace or execution profile |
 | `ask`, `start_job`, `get_job`, `list_jobs`, `cancel_job`, `delete_job` | Run and manage Codex jobs using the same receipt, polling, cancellation, and idempotency interface as Claude MCP |
 | `review_code` | Submit a supplied diff for read-only review |
-| `generate_image` | Generate a PNG with the Images API and return its path on the MCP host |
+| `generate_image` | Generate a PNG with optional reference images and return its path on the MCP host |
 
 Use `review:true` with `ask` for workspace-based reviews. Local review sessions
 can opt into continuation with `resumable:true` and an explicit model, then
@@ -101,3 +101,24 @@ Images default to `gpt-image-2` and the native
 `~/.local/share/codex-mcp/images` directory. Docker stores them in
 `/state/images` inside the named state volume. Set
 `CODEX_MCP_IMAGE_MODEL` and `CODEX_MCP_IMAGES_DIR` to override them.
+
+Pass `reference_images` to guide a generation with up to 16 PNG, JPEG or WebP
+images (8 MiB total before base64 encoding). The list is ordered, so a prompt
+can refer to “the first image” and “the second image.” For example:
+
+```json
+{
+  "prompt": "Use the first image for the pose and the second for the outfit.",
+  "reference_images": [
+    {"path": "art/pose.png"},
+    {"path": "art/outfit.webp"}
+  ]
+}
+```
+
+Paths are relative to the MCP host's workspace or absolute inside its mounted
+roots. For an attachment on another machine, supply an object such as
+`{"mime_type":"image/png","data":"<base64-encoded file contents>"}` in the
+same list. The data field takes plain padded base64. The provider must support
+multipart `POST /images/edits` for reference inputs. Omitting the list or passing
+an empty list uses the existing `POST /images/generations` request.
