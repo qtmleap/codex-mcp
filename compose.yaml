@@ -1,0 +1,28 @@
+services:
+  codex-mcp:
+    build: .
+    image: codex-mcp:local
+    env_file:
+      - path: ${CODEX_MCP_HOST_ENV_FILE:-${HOME}/.config/codex-mcp/env}
+        required: false
+    environment:
+      CODEX_MCP_TOKEN: ${CODEX_MCP_TOKEN:-}
+      CODEX_MCP_PROFILES_FILE: ${CODEX_MCP_PROFILES_FILE:-}
+      CODEX_MCP_PERMISSION_MODE: ${CODEX_MCP_PERMISSION_MODE:-default}
+    ports:
+      - '127.0.0.1:${CODEX_MCP_PORT:-8879}:8879'
+    volumes:
+      - codex-mcp-state:/state
+      - type: bind
+        source: ${CODEX_MCP_HOST_WORKSPACE:-.}
+        target: /workspace
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ['CMD', 'node', '-e', 'fetch("http://127.0.0.1:8879/healthz").then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+volumes:
+  codex-mcp-state:

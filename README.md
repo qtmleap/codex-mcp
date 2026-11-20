@@ -1,0 +1,71 @@
+# codex-mcp
+
+Codex CLI MCP server derived from [qtmleap/claude-mcp](https://github.com/qtmleap/claude-mcp).
+It uses a separate OpenAI Platform API key and independent Codex state for worker
+calls. The Codex client connecting to this MCP keeps its own authentication.
+
+## Tools
+
+| Tools | Behavior |
+| --- | --- |
+| `models`, `execution_context` | Discover models and probe the configured workspace or execution profile |
+| `ask`, `start_job`, `get_job`, `list_jobs`, `cancel_job`, `delete_job` | Run and manage Codex jobs using the same receipt, polling, cancellation, and idempotency interface as Claude MCP |
+| `review_code` | Submit a supplied diff for read-only review |
+| `generate_image` | Generate a PNG with the Images API and return its path on the MCP host |
+
+Use `review:true` with `ask` for workspace-based reviews. Local review sessions
+can opt into continuation with `resumable:true` and an explicit model, then
+continue with `resume_job_id`. Default execution is read-only. To allow edits
+under the configured workspace, set `CODEX_MCP_PERMISSION_MODE=acceptEdits`.
+Review mode remains read-only. Codex does not expose the Claude-specific
+per-invocation USD budget cap, so calls specifying `max_budget_usd` fail
+before a model request.
+
+## Run
+
+Requires Node.js 22 or newer and Codex CLI on PATH. Set `CODEX_MCP_BINARY`
+to an absolute executable path if needed. Supply `OPENAI_API_KEY` in the
+process environment, or in a mode-600 `~/.config/codex-mcp/env` file.
+The repository configuration uses no ChatGPT credentials.
+
+```sh
+npm ci
+npm test
+node src/main.mjs --transport stdio
+```
+
+Register stdio from the checkout with:
+
+```sh
+codex mcp add codex-mcp -- "$(command -v node)" "$PWD/src/main.mjs" --transport stdio
+```
+
+For a local HTTP service:
+
+```sh
+node src/main.mjs --transport http
+codex mcp add codex-mcp --url http://127.0.0.1:8879/mcp
+```
+
+For Docker, use a private env file and the same loopback endpoint:
+
+```sh
+docker compose up -d --build
+```
+
+The working directory defaults to the current directory for native runs and
+`/workspace` in Docker. Configure `CODEX_MCP_WORKSPACE`,
+`CODEX_MCP_HOST_WORKSPACE`, or `CODEX_MCP_MOUNTED_ROOTS` when required.
+Docker execution profiles are opt-in via `compose.docker.yaml`. Select the
+Codex adapter executable as the profile's CLI and provide Codex CLI on its PATH.
+The profile containers must have Node.js installed.
+
+For HTTP, `CODEX_MCP_TOKEN` is an optional separate MCP bearer token.
+With it enabled, supply the token using the client's bearer-token environment
+variable setting. The health endpoint is `/healthz` and makes no API calls.
+Docker publishes the MCP endpoint on loopback.
+
+Images default to `gpt-image-2` and the native
+`~/.local/share/codex-mcp/images` directory. Docker stores them in
+`/state/images` inside the named state volume. Set
+`CODEX_MCP_IMAGE_MODEL` and `CODEX_MCP_IMAGES_DIR` to override them.

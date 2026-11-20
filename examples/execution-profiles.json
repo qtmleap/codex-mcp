@@ -1,0 +1,28 @@
+{
+  "profiles": {
+    "project": {
+      "backend": "docker",
+      "container": "replace-with-existing-devcontainer-name-or-id",
+      "user": "vscode",
+      "root": "/home/vscode/app",
+      "roots": ["/home/vscode/app"],
+      "node": "/usr/local/share/nvm/current/bin/node",
+      "cli": "/opt/codex-mcp/src/codex-cli.mjs",
+      "expected_mounts": [
+        {"type": "bind", "source": "/absolute/path/to/project", "target": "/home/vscode/app"}
+      ],
+      "expected_labels": {
+        "devcontainer.local_folder": "/absolute/path/to/project",
+        "com.docker.compose.service": "app"
+      },
+      "tools": [
+        {"name": "python", "command": "/usr/local/python/current/bin/python3", "args": ["--version"]},
+        {"name": "node", "command": "/usr/local/share/nvm/current/bin/node", "args": ["--version"]}
+      ],
+      "env": {
+        "PATH": "/home/vscode/app/.venv/bin:/usr/local/python/current/bin:/usr/local/share/nvm/current/bin:/home/vscode/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "LANG": "C.UTF-8"
+      }
+    }
+  }
+}

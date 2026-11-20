@@ -1,0 +1,21 @@
+{
+  "name": "codex-mcp",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Codex CLI and OpenAI Images MCP server over stdio and Streamable HTTP",
+  "scripts": {
+    "start": "node src/main.mjs --transport http",
+    "stdio": "node src/main.mjs --transport stdio",
+    "test": "node --test --test-concurrency=4 test/*.test.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "express": "4.22.3",
+    "zod": "4.6.7"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
