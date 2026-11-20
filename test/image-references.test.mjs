@@ -132,7 +132,7 @@ test('absent or empty references retain prompt-only JSON generation and path res
   assert.equal(requests.length, 2);
   for (const req of requests) {
     assert.equal(req.url, '/v1/images/generations');
-    assert.deepEqual(req.fields, {model: 'fixture-image-model', prompt: 'Match this character', n: 1, output_format: 'png'});
+    assert.deepEqual(req.fields, {model: 'fixture-image-model', prompt: 'Match this character', n: 1});
     assert.equal(req.files, undefined);
   }
 });

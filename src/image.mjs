@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { openaiBaseUrl } from './openai-base-url.mjs';
 import { resolveWorkspace } from './workspace.mjs';
 
+const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
 const maxBytes = 8 * 1024 * 1024;
 const maxEncodedLength = 4 * Math.ceil(maxBytes / 3);
 // Allow space for the JSON-RPC envelope, prompt and padded base64 parts.
@@ -20,7 +21,7 @@ const reference = z.union([
 ]);
 
 function imageType(bytes) {
-  if (bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) return 'image/png';
+  if (bytes.subarray(0, 8).equals(pngSignature)) return 'image/png';
   if (bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return 'image/jpeg';
   if (bytes.toString('latin1', 0, 4) === 'RIFF' && bytes.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
   throw new Error('Expected a PNG, JPEG or WebP reference image');
@@ -83,13 +84,13 @@ export function registerImage(server, config, success, failed, requestSignal) {
   }, async ({ prompt, reference_images = [] }, extra) => {
     try {
       if (!config.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required');
-      const fields = { model: config.env.CODEX_MCP_IMAGE_MODEL || 'gpt-image-2', prompt, n: 1, output_format: 'png' };
+      const fields = { model: config.env.CODEX_MCP_IMAGE_MODEL || 'gpt-image-2', prompt, n: 1 };
       const headers = { authorization: 'Bearer ' + config.env.OPENAI_API_KEY };
       let endpoint = 'generations';
       let body;
       if (reference_images.length) {
         endpoint = 'edits';
-        body = await editBody(fields, reference_images, config);
+        body = await editBody({ ...fields, output_format: 'png' }, reference_images, config);
       } else {
         headers['content-type'] = 'application/json';
         body = JSON.stringify(fields);
@@ -98,12 +99,17 @@ export function registerImage(server, config, success, failed, requestSignal) {
         method: 'POST', redirect: 'error', headers, body,
         signal: AbortSignal.any([requestSignal(extra), AbortSignal.timeout(180000)]),
       });
-      if (!response.ok) throw new Error('Images API returned HTTP ' + response.status);
+      if (!response.ok) {
+        const hint = [401, 403].includes(response.status) ? ' Check the API key and its permission for this endpoint.' : '';
+        throw new Error(`Images API returned HTTP ${response.status} for POST /images/${endpoint}.${hint}`);
+      }
       const { data } = await response.json();
-      if (!data?.[0]?.b64_json) throw new Error('Images API did not return a PNG');
+      const encoded = data?.[0]?.b64_json;
+      const bytes = typeof encoded === 'string' ? Buffer.from(encoded, 'base64') : null;
+      if (!bytes?.subarray(0, 8).equals(pngSignature)) throw new Error('Images API did not return a PNG');
       await mkdir(config.imagesDir, { recursive: true, mode: 0o700 });
       const path = join(config.imagesDir, randomUUID() + '.png');
-      await writeFile(path, Buffer.from(data[0].b64_json, 'base64'), { flag: 'wx', mode: 0o600 });
+      await writeFile(path, bytes, { flag: 'wx', mode: 0o600 });
       return success({ path });
     } catch (error) {
       return failed(error, config);

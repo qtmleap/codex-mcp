@@ -101,6 +101,9 @@ Images default to `gpt-image-2` and the native
 `~/.local/share/codex-mcp/images` directory. Docker stores them in
 `/state/images` inside the named state volume. Set
 `CODEX_MCP_IMAGE_MODEL` and `CODEX_MCP_IMAGES_DIR` to override them.
+For a compatible gateway, choose an image model that the configured key can use.
+Prompt-only requests use the provider's default PNG format. A key may have
+separate permissions for image generation and editing.
 
 Pass `reference_images` to guide a generation with up to 16 PNG, JPEG or WebP
 images (8 MiB total before base64 encoding). The list is ordered, so a prompt
