@@ -75,6 +75,16 @@ the container after changing the API key. A failed API-key request remains on
 the API route. Start a fresh review session after changing authentication mode.
 Image generation uses the Images API and requires an API key.
 
+For an OpenAI-compatible API, set `CODEX_MCP_BASE_URL=https://ai.qleap.jp/v1`
+and set `OPENAI_API_KEY` to the provider's key. The base URL is used for
+Codex API requests, model discovery, and image generation. It defaults to
+`https://api.openai.com/v1`; include the API path such as `/v1`.
+The provider must support the Responses API for Codex and the Images API
+for image generation. The setting does not change subscription login routing.
+For Docker Compose, set `CODEX_MCP_BASE_URL` in the optional
+`~/.config/codex-mcp/env` file (or the file selected by
+`CODEX_MCP_HOST_ENV_FILE`) and recreate the container after changing it. Do not put credentials in the URL.
+
 The working directory defaults to the current directory for native runs and
 `/workspace` in Docker. Configure `CODEX_MCP_WORKSPACE`,
 `CODEX_MCP_HOST_WORKSPACE`, or `CODEX_MCP_MOUNTED_ROOTS` when required.

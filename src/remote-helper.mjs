@@ -5,7 +5,7 @@ import * as fs from 'node:fs';
 import {promises as fsp} from 'node:fs';
 import {posix as path} from 'node:path';
 
-const provider=['OPENAI_API_KEY','CODEX_MCP_BINARY','ANTHROPIC_BASE_URL','ANTHROPIC_AUTH_TOKEN','ANTHROPIC_API_KEY','ANTHROPIC_CUSTOM_HEADERS','CF_ACCESS_CLIENT_ID','CF_ACCESS_CLIENT_SECRET'];
+const provider=['OPENAI_API_KEY','CODEX_MCP_BASE_URL','CODEX_MCP_BINARY','ANTHROPIC_BASE_URL','ANTHROPIC_AUTH_TOKEN','ANTHROPIC_API_KEY','ANTHROPIC_CUSTOM_HEADERS','CF_ACCESS_CLIENT_ID','CF_ACCESS_CLIENT_SECRET'];
 const safe=['PATH','LANG','LC_ALL','TZ','VIRTUAL_ENV'];
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const emit=value=>process.stdout.write(JSON.stringify(value)+'\n');

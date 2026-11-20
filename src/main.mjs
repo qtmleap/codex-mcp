@@ -1,3 +1,4 @@
+import { openaiBaseUrl } from './openai-base-url.mjs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { parseEnv } from 'node:util';
@@ -23,6 +24,7 @@ async function close(){
 process.on('SIGTERM',()=>void close());process.on('SIGINT',()=>void close());
 try{
  const env={...process.env};
+ env.CODEX_MCP_BASE_URL=openaiBaseUrl(env.CODEX_MCP_BASE_URL);
  if(env.CODEX_MCP_AUTH_HOME)await mkdir(env.CODEX_MCP_AUTH_HOME,{recursive:true,mode:0o700});
  const keyFile=env.CODEX_MCP_ENV_FILE || join(homedir(),'.config/codex-mcp/env');
  const contents=await readFile(keyFile,'utf8').catch(error=>{

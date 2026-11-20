@@ -34,3 +34,9 @@ test('redirects never forward credentials and oversized output is bounded',async
  const huge=await api(t,(_,res)=>res.end('x'.repeat(20000)));
  cfg.env.ANTHROPIC_BASE_URL=huge;assert.equal((await listModels(cfg)).warning,'models_api_invalid');
 });
+
+test('Codex model discovery uses the configured base URL and bearer key',async t=>{
+ const base=await api(t,(req,res)=>{assert.equal(req.url,'/v1/models');assert.equal(req.headers.authorization,'Bearer synthetic-key');res.end(JSON.stringify({data:[{id:'gateway-model'}]}));});
+ const result=await listModels({codex:true,env:{OPENAI_API_KEY:'synthetic-key',CODEX_MCP_BASE_URL:base+'/v1/'},models:[],modelsTimeoutMs:500,maxOutput:10000});
+ assert.equal(result.source,'api');assert.equal(result.models[0].id,'gateway-model');
+});

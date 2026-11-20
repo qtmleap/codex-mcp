@@ -1,3 +1,4 @@
+import { openaiBaseUrl } from './openai-base-url.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -11,7 +12,7 @@ export function registerImage(server, config, success, failed, requestSignal) {
   }, async ({ prompt }, extra) => {
     try {
       if (!config.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required');
-      const response = await fetch('https://api.openai.com/v1/images/generations', {
+      const response = await fetch(openaiBaseUrl(config.env.CODEX_MCP_BASE_URL)+'/images/generations', {
         method: 'POST',
         redirect: 'error',
         headers: { authorization: 'Bearer ' + config.env.OPENAI_API_KEY, 'content-type': 'application/json' },

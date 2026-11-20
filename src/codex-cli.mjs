@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { openaiBaseUrl } from './openai-base-url.mjs';
 import { spawn } from 'node:child_process';
 import { access, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
@@ -23,6 +24,7 @@ async function run() {
       child.once('close', code => { process.exitCode = code ?? 1; resolve(); });
     });
   }
+  const baseUrl = openaiBaseUrl(process.env.CODEX_MCP_BASE_URL);
   const useApiKey = Boolean(process.env.OPENAI_API_KEY?.trim());
   const authMode = useApiKey ? 'api' : 'chatgpt';
   if (option('--max-budget-usd')) return fail('Codex CLI does not enforce a per-call USD budget');
@@ -58,7 +60,7 @@ async function run() {
       '-a', 'never',
       ...(useApiKey ? [
         '-c', 'model_provider="openai_platform"',
-        '-c', 'model_providers.openai_platform={name="OpenAI Platform",base_url="https://api.openai.com/v1",env_key="OPENAI_API_KEY",wire_api="responses",requires_openai_auth=false,supports_websockets=false,request_max_retries=0,stream_max_retries=0}',
+        '-c', 'model_providers.openai_platform={name="OpenAI Platform",base_url='+JSON.stringify(baseUrl)+',env_key="OPENAI_API_KEY",wire_api="responses",requires_openai_auth=false,supports_websockets=false,request_max_retries=0,stream_max_retries=0}',
       ] : ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"',
         '-c', 'cli_auth_credentials_store="file"']),
       '-c', 'web_search="disabled"',
@@ -89,12 +91,16 @@ async function run() {
     child.stdin.on('error', () => {});
     if (instruction) child.stdin.write(instruction + '\n\n');
     process.stdin.pipe(child.stdin);
-    let answer, usage, threadId, failed;
+    let answer, usage, threadId, failed, modelAccessDenied;
     for await (const line of createInterface({ input: child.stdout })) {
       let event;
       try { event = JSON.parse(line); } catch { continue; }
       if (event.type === 'thread.started') threadId = event.thread_id;
-      if (event.type === 'turn.failed') failed = true;
+      if (event.type === 'turn.failed') {
+        failed = true;
+        modelAccessDenied = typeof event.error?.message === 'string' &&
+          /does not have access to model/i.test(event.error.message);
+      }
       if (event.type === 'turn.completed') usage = event.usage;
       if (event.type === 'item.completed' && event.item?.type === 'agent_message') {
         answer = event.item.text;
@@ -104,7 +110,9 @@ async function run() {
       }
     }
     const code = await exited;
-    if (code !== 0 || failed || typeof answer !== 'string') return fail('Codex execution failed; check ' + (useApiKey ? 'the API key' : 'the ChatGPT login') + ', model access, and workspace permissions');
+    if (code !== 0 || failed || typeof answer !== 'string') return fail(modelAccessDenied
+      ? 'Codex execution failed; the provider reports the selected model is not accessible to this account'
+      : 'Codex execution failed; check ' + (useApiKey ? 'the API key' : 'the ChatGPT login') + ', model access, and workspace permissions');
     if (persistent) {
       if (typeof threadId !== 'string' || !/^[0-9a-f-]{36}$/i.test(threadId) || (thread && threadId !== thread)) {
         return fail('Codex returned an unexpected thread ID');

@@ -18,7 +18,7 @@ const id = '12345678-1234-1234-1234-123456789abc';
 if (!args.includes('sandbox_mode="read-only"') ||
     (args.includes('resume') && !args.includes(id))) process.exit(2);
 if (process.env.EXPECTED_AUTH_MODE === 'api') {
-  if (!args.some(arg => arg.includes('env_key="OPENAI_API_KEY"')) ||
+  if (!args.some(arg => arg.includes('base_url="https://gateway.example/v1"')) || !args.some(arg => arg.includes('env_key="OPENAI_API_KEY"')) ||
       process.env.OPENAI_API_KEY !== 'synthetic-test-key') process.exit(3);
 } else if (!args.includes('forced_login_method="chatgpt"') ||
            process.env.OPENAI_API_KEY ||
@@ -40,7 +40,7 @@ process.stdin.on('end', () => {
       command: process.execPath,
       args: ['src/main.mjs', '--transport', 'stdio'],
       env: { ...process.env, CODEX_MCP_WORKSPACE: root, CODEX_MCP_JOB_DIR: join(root, 'jobs'),
-        CODEX_MCP_BINARY: binary, OPENAI_API_KEY: authMode === 'api' ? 'synthetic-test-key' : '',
+        CODEX_MCP_BINARY: binary, CODEX_MCP_BASE_URL: 'https://gateway.example/v1/', OPENAI_API_KEY: authMode === 'api' ? 'synthetic-test-key' : '',
         CODEX_MCP_ENV_FILE: join(root, 'absent.env'), CODEX_MCP_AUTH_HOME: authHome,
         CODEX_MCP_API_KEY_OVERRIDE: '', EXPECTED_AUTH_MODE: authMode },
     }));

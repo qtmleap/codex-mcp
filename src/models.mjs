@@ -1,3 +1,4 @@
+import { openaiBaseUrl } from './openai-base-url.mjs';
 import { RunnerError, childEnvironment } from './runner.mjs';
 async function boundedJson(response, max) {
   const chunks=[];let bytes=0;
@@ -10,7 +11,7 @@ export async function listModels(config, signal) {
   if(config.codex){
     if(config.env.OPENAI_API_KEY){
       try{
-        const response=await fetch('https://api.openai.com/v1/models',{
+        const response=await fetch(openaiBaseUrl(config.env.CODEX_MCP_BASE_URL)+'/models',{
           headers:{authorization:'Bearer '+config.env.OPENAI_API_KEY},
           redirect:'error',
           signal:AbortSignal.any([AbortSignal.timeout(config.modelsTimeoutMs),...(signal?[signal]:[])]),

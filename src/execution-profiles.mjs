@@ -33,7 +33,7 @@ export function selectProfile(id,config){
 }
 export function profilePolicy(id,p,config){return createHash('sha256').update(JSON.stringify(['docker-v1',id,p,config.permissionMode,config.allowedTools??[]])).digest('hex');}
 export const targetCwd=(cwd,p)=>posix.resolve(p.root,cwd??p.root);
-export const PROVIDER_KEYS=Object.freeze(['OPENAI_API_KEY','CODEX_MCP_BINARY','ANTHROPIC_BASE_URL','ANTHROPIC_AUTH_TOKEN','ANTHROPIC_API_KEY','ANTHROPIC_CUSTOM_HEADERS','CF_ACCESS_CLIENT_ID','CF_ACCESS_CLIENT_SECRET']);
+export const PROVIDER_KEYS=Object.freeze(['OPENAI_API_KEY','CODEX_MCP_BASE_URL','CODEX_MCP_BINARY','ANTHROPIC_BASE_URL','ANTHROPIC_AUTH_TOKEN','ANTHROPIC_API_KEY','ANTHROPIC_CUSTOM_HEADERS','CF_ACCESS_CLIENT_ID','CF_ACCESS_CLIENT_SECRET']);
 export function dockerEnvironment(config,provider=false){
  const keys=['PATH','HOME','TMPDIR','DOCKER_HOST','DOCKER_CONTEXT','DOCKER_CONFIG','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH',...(provider?PROVIDER_KEYS:[])];
  return Object.fromEntries(keys.filter(k=>typeof config.env[k]==='string').map(k=>[k,config.env[k]]));
