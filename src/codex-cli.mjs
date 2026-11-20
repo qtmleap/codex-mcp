@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { access, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 
@@ -23,21 +23,44 @@ async function run() {
       child.once('close', code => { process.exitCode = code ?? 1; resolve(); });
     });
   }
-  if (!process.env.OPENAI_API_KEY) return fail('OPENAI_API_KEY is required');
+  const useApiKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const authMode = useApiKey ? 'api' : 'chatgpt';
   if (option('--max-budget-usd')) return fail('Codex CLI does not enforce a per-call USD budget');
 
   const persistent = Boolean(ownId);
-  const home = persistent ? process.env.CLAUDE_CONFIG_DIR : await mkdtemp(join(tmpdir(), 'codex-mcp-'));
+  const authHome = process.env.CODEX_MCP_AUTH_HOME || join(homedir(), '.local', 'state', 'codex-mcp', 'auth');
+  if (!useApiKey) {
+    try { await access(join(authHome, 'auth.json')); }
+    catch { return fail('ChatGPT login required; run codex login with CODEX_HOME set to the codex-mcp authentication directory'); }
+  }
+  const temporary = useApiKey && !persistent;
+  const home = useApiKey
+    ? (temporary ? await mkdtemp(join(tmpdir(), 'codex-mcp-')) : process.env.CLAUDE_CONFIG_DIR)
+    : authHome;
   try {
-    const marker = join(home, 'codex-thread-id');
+    const sessionDir = process.env.CLAUDE_CONFIG_DIR;
+    const marker = persistent ? join(sessionDir, 'codex-thread-id') : null;
+    const modePath = persistent ? join(sessionDir, 'codex-auth-mode') : null;
     const resuming = Boolean(option('--resume'));
+    if (resuming) {
+      // Sessions created before ChatGPT mode was introduced always used the API.
+      const previousMode = await readFile(modePath, 'utf8').catch(error => {
+        if (error.code === 'ENOENT') return 'api';
+        throw error;
+      });
+      if (previousMode !== authMode) return fail('Authentication mode changed; start a new Codex session');
+    }
     const thread = resuming ? (await readFile(marker, 'utf8')).trim() : null;
     if (resuming && !/^[0-9a-f-]{36}$/i.test(thread)) return fail('Invalid Codex thread ID');
     const mode = option('--permission-mode');
     const sandbox = args.includes('--bare') || mode !== 'acceptEdits' ? 'read-only' : 'workspace-write';
     const flags = [
-      '-a', 'never', '-c', 'model_provider="openai_platform"',
-      '-c', 'model_providers.openai_platform={name="OpenAI Platform",base_url="https://api.openai.com/v1",env_key="OPENAI_API_KEY",wire_api="responses",requires_openai_auth=false,supports_websockets=false,request_max_retries=0,stream_max_retries=0}',
+      '-a', 'never',
+      ...(useApiKey ? [
+        '-c', 'model_provider="openai_platform"',
+        '-c', 'model_providers.openai_platform={name="OpenAI Platform",base_url="https://api.openai.com/v1",env_key="OPENAI_API_KEY",wire_api="responses",requires_openai_auth=false,supports_websockets=false,request_max_retries=0,stream_max_retries=0}',
+      ] : ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"',
+        '-c', 'cli_auth_credentials_store="file"']),
       '-c', 'web_search="disabled"',
       '-c', 'shell_environment_policy.exclude=["OPENAI_API_KEY","CODEX_MCP_TOKEN","CLAUDE_MCP_TOKEN"]',
       '-c', 'sandbox_mode="'+sandbox+'"', 'exec', ...(resuming ? ['resume'] : []),
@@ -55,6 +78,8 @@ async function run() {
     delete env.CODEX_ACCESS_TOKEN;
     delete env.CODEX_API_KEY;
     delete env.OPENAI_BASE_URL;
+    if (useApiKey) env.OPENAI_API_KEY = env.OPENAI_API_KEY.trim();
+    else delete env.OPENAI_API_KEY;
     const child = spawn(binary, flags, { env, stdio: ['pipe', 'pipe', 'ignore'] });
     const exited = new Promise(resolve => {
       child.once('error', () => resolve(null));
@@ -79,17 +104,18 @@ async function run() {
       }
     }
     const code = await exited;
-    if (code !== 0 || failed || typeof answer !== 'string') return fail('Codex execution failed; check the API key, model access, and workspace permissions');
+    if (code !== 0 || failed || typeof answer !== 'string') return fail('Codex execution failed; check ' + (useApiKey ? 'the API key' : 'the ChatGPT login') + ', model access, and workspace permissions');
     if (persistent) {
       if (typeof threadId !== 'string' || !/^[0-9a-f-]{36}$/i.test(threadId) || (thread && threadId !== thread)) {
         return fail('Codex returned an unexpected thread ID');
       }
+      await writeFile(modePath, authMode, { mode: 0o600 });
       await writeFile(marker, threadId, { mode: 0o600 });
     }
     emit({ type: 'result', subtype: 'success', is_error: false, result: answer, session_id: ownId,
       usage: usage && { ...usage, cache_read_input_tokens: usage.cached_input_tokens } });
   } finally {
-    if (!persistent) await rm(home, { recursive: true, force: true });
+    if (temporary) await rm(home, { recursive: true, force: true });
   }
 }
 

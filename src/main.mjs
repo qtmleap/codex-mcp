@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -23,12 +23,15 @@ async function close(){
 process.on('SIGTERM',()=>void close());process.on('SIGINT',()=>void close());
 try{
  const env={...process.env};
+ if(env.CODEX_MCP_AUTH_HOME)await mkdir(env.CODEX_MCP_AUTH_HOME,{recursive:true,mode:0o700});
  const keyFile=env.CODEX_MCP_ENV_FILE || join(homedir(),'.config/codex-mcp/env');
  const contents=await readFile(keyFile,'utf8').catch(error=>{
   if(error.code==='ENOENT')return '';
   throw error;
  });
- env.OPENAI_API_KEY=env.OPENAI_API_KEY||parseEnv(contents).OPENAI_API_KEY||'';
+ env.OPENAI_API_KEY=env.CODEX_MCP_API_KEY_OVERRIDE?.trim()||
+  env.OPENAI_API_KEY?.trim()||parseEnv(contents).OPENAI_API_KEY?.trim()||'';
+ delete env.CODEX_MCP_API_KEY_OVERRIDE;
  for(const [key,value] of Object.entries(env)){
   if(key.startsWith('CODEX_MCP_'))env[key.replace('CODEX_MCP_','CLAUDE_MCP_')]=value;
  }

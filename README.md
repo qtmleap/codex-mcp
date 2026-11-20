@@ -1,8 +1,8 @@
 # codex-mcp
 
 Codex CLI MCP server derived from [qtmleap/claude-mcp](https://github.com/qtmleap/claude-mcp).
-It uses a separate OpenAI Platform API key and independent Codex state for worker
-calls. The Codex client connecting to this MCP keeps its own authentication.
+Worker calls use a separate ChatGPT login or an OpenAI Platform API key.
+The Codex client connecting to this MCP keeps its own authentication.
 
 ## Tools
 
@@ -26,9 +26,16 @@ before a model request.
 For native setup, install dependencies and run the test script with Bun. The
 server runs on Node.js 22 or newer and requires Codex CLI on PATH. Set
 `CODEX_MCP_BINARY`
-to an absolute executable path if needed. Supply `OPENAI_API_KEY` in the
-process environment, or in a mode-600 `~/.config/codex-mcp/env` file.
-The repository configuration uses no ChatGPT credentials.
+to an absolute executable path if needed. For API billing, set
+`OPENAI_API_KEY` in the process environment or a mode-600
+`~/.config/codex-mcp/env` file. For subscription usage, sign in to a dedicated
+Codex home without setting the API key:
+
+```sh
+mkdir -p -m 700 "$HOME/.local/state/codex-mcp/auth"
+CODEX_HOME="$HOME/.local/state/codex-mcp/auth" \
+  codex -c 'cli_auth_credentials_store="file"' login --device-auth
+```
 
 ```sh
 bun install
@@ -49,11 +56,24 @@ node src/main.mjs --transport http
 codex mcp add codex-mcp --url http://127.0.0.1:8879/mcp
 ```
 
-For Docker, use a private env file and the same loopback endpoint:
+For Docker, use the same loopback endpoint:
 
 ```sh
 docker compose up -d --build
 ```
+
+An exported `OPENAI_API_KEY` takes precedence over a key in the optional
+`~/.config/codex-mcp/env` file. If neither is set, log in once in the container:
+
+```sh
+docker compose exec codex-mcp \
+  codex -c 'cli_auth_credentials_store="file"' login --device-auth
+```
+
+The Docker state volume retains the login across container recreation. Recreate
+the container after changing the API key. A failed API-key request remains on
+the API route. Start a fresh review session after changing authentication mode.
+Image generation uses the Images API and requires an API key.
 
 The working directory defaults to the current directory for native runs and
 `/workspace` in Docker. Configure `CODEX_MCP_WORKSPACE`,

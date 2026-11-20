@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 USER node
-ENV HOST=0.0.0.0 PORT=8879 CODEX_MCP_WORKSPACE=/workspace CODEX_MCP_JOB_DIR=/state/jobs CODEX_MCP_IMAGES_DIR=/state/images
+ENV HOST=0.0.0.0 PORT=8879 CODEX_MCP_WORKSPACE=/workspace CODEX_MCP_JOB_DIR=/state/jobs CODEX_MCP_AUTH_HOME=/state/auth CODEX_HOME=/state/auth CODEX_MCP_IMAGES_DIR=/state/images
 EXPOSE 8879
 ENTRYPOINT ["tini", "--", "node", "src/main.mjs"]
 CMD ["--transport", "http"]

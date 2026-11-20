@@ -6,6 +6,7 @@ services:
       - path: ${CODEX_MCP_HOST_ENV_FILE:-${HOME}/.config/codex-mcp/env}
         required: false
     environment:
+      CODEX_MCP_API_KEY_OVERRIDE: ${OPENAI_API_KEY:-}
       CODEX_MCP_TOKEN: ${CODEX_MCP_TOKEN:-}
       CODEX_MCP_PROFILES_FILE: ${CODEX_MCP_PROFILES_FILE:-}
       CODEX_MCP_PERMISSION_MODE: ${CODEX_MCP_PERMISSION_MODE:-default}

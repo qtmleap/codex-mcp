@@ -1,21 +1,28 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-test('Codex MCP exposes the job interface, runs a read-only review, and resumes its Codex thread', async () => {
+for (const authMode of ['api', 'chatgpt']) test('Codex MCP resumes a review with ' + authMode + ' authentication', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex-mcp-test-'));
   const binary = join(root, 'mock-codex');
+  const authHome = join(root, 'auth');
+  await mkdir(authHome);
+  await writeFile(join(authHome, 'auth.json'), '{}');
   const fixture = `#!${process.execPath}
 const args = process.argv.slice(2);
 const id = '12345678-1234-1234-1234-123456789abc';
 if (!args.includes('sandbox_mode="read-only"') ||
-    !args.some(arg => arg.includes('env_key="OPENAI_API_KEY"')) ||
-    (args.includes('resume') && !args.includes(id)) ||
-    process.env.OPENAI_API_KEY !== 'synthetic-test-key') process.exit(2);
+    (args.includes('resume') && !args.includes(id))) process.exit(2);
+if (process.env.EXPECTED_AUTH_MODE === 'api') {
+  if (!args.some(arg => arg.includes('env_key="OPENAI_API_KEY"')) ||
+      process.env.OPENAI_API_KEY !== 'synthetic-test-key') process.exit(3);
+} else if (!args.includes('forced_login_method="chatgpt"') ||
+           process.env.OPENAI_API_KEY ||
+           process.env.CODEX_HOME !== process.env.CODEX_MCP_AUTH_HOME) process.exit(4);
 process.stdin.resume();
 process.stdin.on('end', () => {
   for (const event of [
@@ -33,7 +40,9 @@ process.stdin.on('end', () => {
       command: process.execPath,
       args: ['src/main.mjs', '--transport', 'stdio'],
       env: { ...process.env, CODEX_MCP_WORKSPACE: root, CODEX_MCP_JOB_DIR: join(root, 'jobs'),
-        CODEX_MCP_BINARY: binary, OPENAI_API_KEY: 'synthetic-test-key' },
+        CODEX_MCP_BINARY: binary, OPENAI_API_KEY: authMode === 'api' ? 'synthetic-test-key' : '',
+        CODEX_MCP_ENV_FILE: join(root, 'absent.env'), CODEX_MCP_AUTH_HOME: authHome,
+        CODEX_MCP_API_KEY_OVERRIDE: '', EXPECTED_AUTH_MODE: authMode },
     }));
     assert.equal(client.getServerVersion().name, 'codex-mcp');
     const tools = (await client.listTools()).tools.map(tool => tool.name);
