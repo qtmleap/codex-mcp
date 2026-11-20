@@ -23,14 +23,16 @@ before a model request.
 
 ## Run
 
-Requires Node.js 22 or newer and Codex CLI on PATH. Set `CODEX_MCP_BINARY`
+For native setup, install dependencies and run the test script with Bun. The
+server runs on Node.js 22 or newer and requires Codex CLI on PATH. Set
+`CODEX_MCP_BINARY`
 to an absolute executable path if needed. Supply `OPENAI_API_KEY` in the
 process environment, or in a mode-600 `~/.config/codex-mcp/env` file.
 The repository configuration uses no ChatGPT credentials.
 
 ```sh
-npm ci
-npm test
+bun install
+bun run test
 node src/main.mjs --transport stdio
 ```
 
