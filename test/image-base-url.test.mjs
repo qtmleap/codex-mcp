@@ -6,11 +6,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { registerImage } from '../src/image.mjs';
 
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mPQsooCAAFQAL/Rfn3VAAAAAElFTkSuQmCC', 'base64');
+
 test('image generation sends the bearer key to the configured endpoint',async t=>{
  const api=createServer((req,res)=>{
   assert.equal(req.url,'/v1/images/generations');
   assert.equal(req.headers.authorization,'Bearer synthetic-key');
-  res.end(JSON.stringify({data:[{b64_json:Buffer.from('image').toString('base64')}]}));
+  res.end(JSON.stringify({data:[{b64_json:png.toString('base64')}]}));
  });
  await new Promise(r=>api.listen(0,'127.0.0.1',r));
  t.after(()=>new Promise(r=>api.close(r)));
@@ -18,5 +20,5 @@ test('image generation sends the bearer key to the configured endpoint',async t=
  let handler;
  registerImage({registerTool(_name,_schema,fn){handler=fn;}},{env:{OPENAI_API_KEY:'synthetic-key',CODEX_MCP_BASE_URL:`http://127.0.0.1:${api.address().port}/v1/`},imagesDir:dir},x=>x,e=>{throw e;},()=>new AbortController().signal);
  const result=await handler({prompt:'test'},{});
- assert.equal((await readFile(result.path)).toString(),'image');
+ assert.deepEqual(await readFile(result.path),png);
 });

@@ -1,4 +1,4 @@
-import {registerImage} from './image.mjs';
+import {imageRequestLimit,registerImage} from './image.mjs';
 import express from 'express';
 import {randomUUID,timingSafeEqual} from 'node:crypto';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -90,8 +90,16 @@ export async function startHttp(config, lifecycleSignal){
   if(req.headers.origin && req.headers.origin!==`http://${host}`){res.status(403).end();return;}
   if(config.token&&!authorized(req,config.token)){res.status(401).end();return;}next();
  });
- app.use(express.json({limit:'512kb'}));
+ const normalJson = express.json({limit:'512kb'});
+ const imageJson = express.json({limit:imageRequestLimit, verify(req,_res,body){req.largeImageRequest = body.length > 512 * 1024;}});
+ app.use('/mcp',(req,res,next)=>{
+  const activeCodex = config.codex && req.method === 'POST' && sessions.has(req.headers['mcp-session-id']);
+  (activeCodex ? imageJson : normalJson)(req,res,next);
+ });
  app.all('/mcp',async(req,res)=>{
+  if(req.largeImageRequest && !(req.body?.method === 'tools/call' && req.body.params?.name === 'generate_image' && req.body.params.arguments?.reference_images?.length)){
+   res.status(413).end();return;
+  }
   if(req.method==='POST'&&Array.isArray(req.body)){res.status(400).json({jsonrpc:'2.0',id:null,error:{code:-32600,message:'Batch requests are unsupported'}});return;}
   const id=req.headers['mcp-session-id'];
   let entry=typeof id==='string'?sessions.get(id):undefined;
